@@ -1,0 +1,5 @@
+{
+  "name": "Perfect Microfinance Loan Management System",
+  "description": "A web-based frontend for a Loan Management System that serves three user roles: Admin, Loan Officer, and Borrower. It features role-based access control, loan application and management, repayment tracking, and SMS log viewing.",
+  "requestFramePermissions": []
+}
