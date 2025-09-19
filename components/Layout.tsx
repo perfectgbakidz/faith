@@ -1,8 +1,7 @@
-
 import React, { useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { SIDENAV_LINKS, LogOutIcon, BuildingIcon } from '../constants';
+import { SIDENAV_LINKS, LogOutIcon, BuildingIcon, ROLE_DISPLAY_NAMES } from '../constants';
 
 const Sidebar: React.FC = () => {
     const { user, logout } = useAuth();
@@ -14,7 +13,7 @@ const Sidebar: React.FC = () => {
         <aside className="w-64 flex-shrink-0 bg-secondary text-light flex flex-col">
             <div className="h-16 flex items-center justify-center px-4 border-b border-gray-700">
                 <BuildingIcon className="w-8 h-8 text-primary-400" />
-                <h1 className="text-xl font-bold ml-2">Perfect Bank</h1>
+                <h1 className="text-xl font-bold ml-2">YAH SALAMULI ORG</h1>
             </div>
             <nav className="flex-grow px-2 py-4">
                 {links.map(link => (
@@ -57,7 +56,7 @@ const Header: React.FC<{ onMenuClick: () => void }> = ({ onMenuClick }) => {
                 Welcome, {user?.name}
             </div>
             <div className="text-sm text-gray-500">
-                Role: <span className="font-medium text-primary">{user?.role.replace('_', ' ')}</span>
+                Role: <span className="font-medium text-primary">{user ? ROLE_DISPLAY_NAMES[user.role] : ''}</span>
             </div>
         </header>
     );

@@ -1,6 +1,11 @@
-
 import React from 'react';
 import { Role } from './types';
+
+export const ROLE_DISPLAY_NAMES: { [key in Role]: string } = {
+  [Role.ADMIN]: 'Admin',
+  [Role.LOAN_OFFICER]: 'Loan Officer',
+  [Role.BORROWER]: 'User',
+};
 
 export function UserIcon(props: React.SVGProps<SVGSVGElement>): React.ReactNode {
     return (
@@ -29,7 +34,7 @@ export const SIDENAV_LINKS = {
     { name: 'Dashboard', path: '/app/admin/dashboard', icon: <HomeIcon /> },
     { name: 'Profile & Settings', path: '/app/profile', icon: <UserIcon /> },
     { name: 'User Management', path: '/app/admin/users', icon: <UsersIcon /> },
-    { name: 'Loan Oversight', path: '/app/admin/loans', icon: <BanknoteIcon /> },
+    { name: 'Loan History', path: '/app/admin/loan-history', icon: <BanknoteIcon /> },
     { name: 'SMS Management', path: '/app/admin/sms-management', icon: <MessageSquareIcon /> },
   ],
 };

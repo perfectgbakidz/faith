@@ -1,86 +1,43 @@
-
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useParams, useNavigate } from 'react-router-dom';
 import { Loan, LoanStatus, SmsLog, Repayment, RepaymentStatus, User, Role } from '../types';
-import { apiGetLoansByStatus, apiReviewLoan, apiGetSmsLogsForLoan, apiSendManualSms, apiGetLoansByStatuses, apiGetRepayments, apiGetLoanById, apiGetUserByUserIdNumber, apiGetBorrowerLoans } from '../services/mockApi';
+import { apiGetLoansByStatus, apiReviewLoan, apiGetAllSmsLogs, apiSendManualSms, apiGetLoansByStatuses, apiGetRepayments, apiGetLoanById, apiGetUserByUserIdNumber, apiGetBorrowerLoans, apiGetAllUsers, apiAdminSendBulkSms } from '../services/mockApi';
 import { Card, Button, Table, Badge, Modal, Input } from '../components/ui';
 
-const smsColumns: Array<{ header: string; accessor: keyof SmsLog | ((item: SmsLog) => React.ReactNode) }> = [
-    { header: 'Date', accessor: (item) => new Date(item.date).toLocaleString() },
-    { header: 'Message', accessor: 'message' },
-    { header: 'Status', accessor: (item) => <Badge color={item.status === 'SENT' ? 'green' : 'blue'}>{item.status}</Badge> },
-];
+const calculateMembershipDuration = (joinDate: string): string => {
+    const start = new Date(joinDate);
+    const now = new Date();
+    let years = now.getFullYear() - start.getFullYear();
+    let months = now.getMonth() - start.getMonth();
+    
+    if (months < 0 || (months === 0 && now.getDate() < start.getDate())) {
+        years--;
+        months = (months + 12) % 12;
+    }
+    
+    if (now.getDate() < start.getDate()) {
+        months--;
+         if (months < 0) {
+            years--;
+            months += 12;
+        }
+    }
+    
+    if (years === 0 && months === 0) {
+        return "New member";
+    }
 
-interface SmsManagementModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    loan: Loan | null;
-}
-
-const SmsManagementModal: React.FC<SmsManagementModalProps> = ({ isOpen, onClose, loan }) => {
-    const [scheduledSms, setScheduledSms] = useState<SmsLog[]>([]);
-    const [manualSms, setManualSms] = useState('');
-    const [smsSending, setSmsSending] = useState(false);
-
-    useEffect(() => {
-        const fetchSmsData = async () => {
-            if (loan) {
-                const logs = await apiGetSmsLogsForLoan(loan.id);
-                setScheduledSms(logs.filter(sms => sms.status === 'SCHEDULED' || sms.status === 'SENT').sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-            }
-        };
-        fetchSmsData();
-    }, [loan]);
-
-    const handleSendManualSms = async () => {
-        if (!manualSms || !loan) return;
-        setSmsSending(true);
-        await apiSendManualSms(loan.id, manualSms);
-        setManualSms('');
-        const logs = await apiGetSmsLogsForLoan(loan.id);
-        setScheduledSms(logs.filter(sms => sms.status === 'SCHEDULED' || sms.status === 'SENT').sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-        setSmsSending(false);
-    };
-
-    return (
-        <Modal isOpen={isOpen} onClose={onClose} title={`SMS Management for ${loan?.userName}`}>
-            {loan && (
-                <div className="space-y-4">
-                    <div>
-                        <h4 className="font-semibold text-secondary mb-2">Send Manual SMS</h4>
-                        <div className="flex items-start space-x-2">
-                            <textarea
-                                value={manualSms}
-                                onChange={(e) => setManualSms(e.target.value)}
-                                placeholder="Type your message..."
-                                className="w-full p-2 border border-gray-300 rounded-md text-sm"
-                                rows={3}
-                            ></textarea>
-                            <Button onClick={handleSendManualSms} disabled={smsSending || !manualSms}>
-                                {smsSending ? 'Sending...' : 'Send'}
-                            </Button>
-                        </div>
-                    </div>
-                    <div>
-                        <h4 className="font-semibold text-secondary mb-2">Scheduled & Sent SMS</h4>
-                        <div className="max-h-64 overflow-y-auto">
-                            <Table columns={smsColumns} data={scheduledSms} />
-                        </div>
-                    </div>
-                </div>
-            )}
-        </Modal>
-    );
+    const yearStr = years > 0 ? `${years} year${years > 1 ? 's' : ''}` : '';
+    const monthStr = months > 0 ? `${months} month${months > 1 ? 's' : ''}` : '';
+    
+    return [yearStr, monthStr].filter(Boolean).join(', ');
 };
-
 
 const OfficerDashboard: React.FC = () => {
     const [pendingLoans, setPendingLoans] = useState<Loan[]>([]);
     const [approvedLoans, setApprovedLoans] = useState<Loan[]>([]);
     const navigate = useNavigate();
     
-    const [managingLoan, setManagingLoan] = useState<Loan | null>(null);
-
     useEffect(() => {
         const fetchLoans = async () => {
             const pending = await apiGetLoansByStatus(LoanStatus.PENDING);
@@ -95,12 +52,8 @@ const OfficerDashboard: React.FC = () => {
         navigate(`/app/officer/review/${loan.id}`);
     };
 
-    const handleManageSmsClick = (loan: Loan) => {
-        setManagingLoan(loan);
-    };
-
     const pendingLoanColumns: Array<{ header: string; accessor: keyof Loan | ((item: Loan) => React.ReactNode) }> = [
-        { header: 'Borrower', accessor: 'userName' },
+        { header: 'User', accessor: 'userName' },
         { header: 'Amount', accessor: (item: Loan) => `₦${item.amount.toLocaleString()}` },
         { header: 'Date', accessor: (item: Loan) => new Date(item.applicationDate).toLocaleDateString() },
         { header: 'Status', accessor: (item: Loan) => <Badge color="yellow">{item.status}</Badge> },
@@ -110,13 +63,10 @@ const OfficerDashboard: React.FC = () => {
     ];
     
     const activeLoanColumns: Array<{ header: string; accessor: keyof Loan | ((item: Loan) => React.ReactNode) }> = [
-        { header: 'Borrower', accessor: 'userName' },
+        { header: 'User', accessor: 'userName' },
         { header: 'Amount', accessor: (item: Loan) => `₦${item.amount.toLocaleString()}`},
         { header: 'Approved On', accessor: (item: Loan) => item.approvalDate ? new Date(item.approvalDate).toLocaleDateString() : 'N/A' },
         { header: 'Status', accessor: (item: Loan) => <Badge color="green">{item.status}</Badge> },
-        { header: 'Actions', accessor: (item: Loan) => (
-            <Button onClick={() => handleManageSmsClick(item)} variant="secondary" className="py-1 px-3 text-sm">Manage SMS</Button>
-        )},
     ];
 
     return (
@@ -128,12 +78,6 @@ const OfficerDashboard: React.FC = () => {
              <Card title="Active Loans">
                 <Table columns={activeLoanColumns} data={approvedLoans} />
             </Card>
-
-            <SmsManagementModal 
-                isOpen={!!managingLoan}
-                onClose={() => setManagingLoan(null)}
-                loan={managingLoan}
-            />
         </div>
     );
 };
@@ -231,8 +175,12 @@ const LoanReviewPage: React.FC = () => {
                     <div><p className="text-gray-500">User ID</p><p className="font-semibold text-base text-gray-900">{applicant.userIdNumber}</p></div>
                     <div><p className="text-gray-500">Email Address</p><p className="font-semibold text-base text-gray-900">{applicant.email}</p></div>
                     <div><p className="text-gray-500">Phone Number</p><p className="font-semibold text-base text-gray-900">{applicant.phone}</p></div>
+                    <div>
+                        <p className="text-gray-500">Member Since</p>
+                        <p className="font-semibold text-base text-gray-900">{new Date(applicant.createdAt).toLocaleDateString()} ({calculateMembershipDuration(applicant.createdAt)})</p>
+                    </div>
                     <div><p className="text-gray-500">Loan Duration</p><p className="font-semibold text-base text-gray-900">{loan.duration} months</p></div>
-                    <div><p className="text-gray-500">Loan Amount</p><p className="font-semibold text-base text-primary">₦{loan.amount.toLocaleString()}</p></div>
+                    <div className="md:col-span-2"><p className="text-gray-500">Loan Amount</p><p className="font-semibold text-base text-primary">₦{loan.amount.toLocaleString()}</p></div>
                     <div className="md:col-span-2"><p className="text-gray-500">Purpose of Loan</p><p className="font-semibold text-base text-gray-900">{loan.purpose}</p></div>
                  </div>
             </Card>
@@ -294,7 +242,7 @@ const LoanHistory: React.FC = () => {
     };
     
     const historyColumns: Array<{ header: string; accessor: keyof Loan | ((item: Loan) => React.ReactNode) }> = [
-        { header: 'Borrower', accessor: 'userName' },
+        { header: 'User', accessor: 'userName' },
         { header: 'Amount', accessor: (item) => `₦${item.amount.toLocaleString()}`},
         { header: 'Application Date', accessor: (item) => new Date(item.applicationDate).toLocaleDateString() },
         { header: 'Status', accessor: (item) => {
@@ -354,50 +302,135 @@ const LoanHistory: React.FC = () => {
     );
 };
 
-const SmsCenter: React.FC = () => {
-    const [activeLoans, setActiveLoans] = useState<Loan[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [managingLoan, setManagingLoan] = useState<Loan | null>(null);
+const OfficerSmsManagement: React.FC = () => {
+    const [activeTab, setActiveTab] = useState('send');
+    const [logs, setLogs] = useState<SmsLog[]>([]);
+    const [borrowers, setBorrowers] = useState<User[]>([]);
+    const [selectedRecipients, setSelectedRecipients] = useState<string[]>([]);
+    const [message, setMessage] = useState('');
+    const [scheduleDate, setScheduleDate] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [feedback, setFeedback] = useState('');
+
+    const fetchLogs = async () => {
+        const allLogs = await apiGetAllSmsLogs();
+        setLogs(allLogs.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    };
 
     useEffect(() => {
-        const fetchActiveLoans = async () => {
-            setIsLoading(true);
-            const loans = await apiGetLoansByStatus(LoanStatus.APPROVED);
-            setActiveLoans(loans);
-            setIsLoading(false);
+        const fetchData = async () => {
+            const allUsers = await apiGetAllUsers();
+            setBorrowers(allUsers.filter(u => u.role === Role.BORROWER));
+            await fetchLogs();
         };
-        fetchActiveLoans();
+        fetchData();
     }, []);
 
-    const activeLoanColumns: Array<{ header: string; accessor: keyof Loan | ((item: Loan) => React.ReactNode) }> = [
-        { header: 'Borrower', accessor: 'userName' },
-        { header: 'Amount', accessor: (item: Loan) => `₦${item.amount.toLocaleString()}`},
-        { header: 'Approved On', accessor: (item: Loan) => item.approvalDate ? new Date(item.approvalDate).toLocaleDateString() : 'N/A' },
-        { header: 'Actions', accessor: (item: Loan) => (
-            <Button onClick={() => setManagingLoan(item)} variant="secondary" className="py-1 px-3 text-sm">Manage SMS</Button>
-        )},
+    const handleRecipientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        // FIX: Use `e.target.selectedOptions` to directly get selected options and avoid type issues.
+        // FIX: Cast `option` to `HTMLOptionElement` because its type was incorrectly inferred as 'unknown'.
+        const options = Array.from(e.target.selectedOptions, option => (option as HTMLOptionElement).value);
+        setSelectedRecipients(options);
+    };
+
+    const handleSubmit = async (isScheduled: boolean) => {
+        if (selectedRecipients.length === 0 || !message) {
+            setFeedback('Please select at least one recipient and write a message.');
+            return;
+        }
+        if (isScheduled && !scheduleDate) {
+            setFeedback('Please select a date and time for scheduled messages.');
+            return;
+        }
+
+        setIsSubmitting(true);
+        setFeedback('');
+        try {
+            await apiAdminSendBulkSms({
+                recipientIds: selectedRecipients,
+                message,
+                scheduleDate: isScheduled ? new Date(scheduleDate).toISOString() : undefined,
+            });
+            setFeedback('Message sent/scheduled successfully!');
+            setSelectedRecipients([]);
+            setMessage('');
+            setScheduleDate('');
+            if (activeTab === 'logs') {
+                await fetchLogs();
+            }
+        } catch (error) {
+            setFeedback('Failed to send message.');
+        } finally {
+            setIsSubmitting(false);
+            setTimeout(() => setFeedback(''), 4000);
+        }
+    };
+    
+    const columns: Array<{ header: string; accessor: keyof SmsLog | ((item: SmsLog) => React.ReactNode) }> = [
+        { header: 'User', accessor: 'userName' },
+        { header: 'Message', accessor: 'message' },
+        { header: 'Date', accessor: (item: SmsLog) => new Date(item.date).toLocaleString() },
+        { header: 'Status', accessor: (item: SmsLog) => {
+            const colorMap: { [key in SmsLog['status']]: 'green' | 'red' | 'blue' } = {
+                'SENT': 'green',
+                'FAILED': 'red',
+                'SCHEDULED': 'blue'
+            };
+            return <Badge color={colorMap[item.status]}>{item.status}</Badge>
+        }},
     ];
 
     return (
-        <div className="space-y-8">
-            <h2 className="text-3xl font-bold text-secondary">SMS Center</h2>
-             <Card title="Manage Communications for Active Loans">
-                {isLoading ? <p>Loading active loans...</p> : <Table columns={activeLoanColumns} data={activeLoans} />}
-            </Card>
-             <SmsManagementModal 
-                isOpen={!!managingLoan}
-                onClose={() => setManagingLoan(null)}
-                loan={managingLoan}
-            />
-        </div>
-    )
-}
+        <Card title="SMS Center">
+            <div className="border-b border-gray-200 mb-4">
+                <nav className="-mb-px flex space-x-6">
+                    <button onClick={() => setActiveTab('send')} className={`py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'send' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Send & Schedule</button>
+                    <button onClick={() => { setActiveTab('logs'); fetchLogs(); }} className={`py-3 px-1 border-b-2 font-medium text-sm ${activeTab === 'logs' ? 'border-primary text-primary' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'}`}>Message Logs</button>
+                </nav>
+            </div>
+
+            {activeTab === 'send' && (
+                <div className="space-y-4">
+                     <div>
+                        <label htmlFor="recipients" className="block text-sm font-medium text-gray-700">Recipients (hold Ctrl/Cmd to select multiple)</label>
+                        <select
+                            id="recipients"
+                            multiple
+                            value={selectedRecipients}
+                            onChange={handleRecipientChange}
+                            className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm rounded-md h-40"
+                        >
+                            {borrowers.map(b => <option key={b.id} value={b.id}>{b.name} ({b.userIdNumber})</option>)}
+                        </select>
+                    </div>
+                     <div>
+                        <label htmlFor="message" className="block text-sm font-medium text-gray-700">Message</label>
+                        <textarea id="message" value={message} onChange={e => setMessage(e.target.value)} rows={4} className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary focus:border-primary sm:text-sm" required></textarea>
+                     </div>
+                     <div>
+                        <Input label="Schedule for later (optional)" type="datetime-local" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} />
+                     </div>
+                     {feedback && <p className={`text-sm ${feedback.includes('success') ? 'text-green-600' : 'text-red-600'}`}>{feedback}</p>}
+                     <div className="flex space-x-3">
+                        <Button onClick={() => handleSubmit(false)} disabled={isSubmitting}>{isSubmitting ? 'Sending...' : 'Send Now'}</Button>
+                        <Button onClick={() => handleSubmit(true)} disabled={isSubmitting} variant="secondary">{isSubmitting ? 'Scheduling...' : 'Schedule SMS'}</Button>
+                     </div>
+                </div>
+            )}
+
+            {activeTab === 'logs' && (
+                <Table columns={columns} data={logs} />
+            )}
+        </Card>
+    );
+};
+
 
 const LoanOfficerPage: React.FC = () => {
     return (
         <Routes>
             <Route path="dashboard" element={<OfficerDashboard />} />
-            <Route path="sms-center" element={<SmsCenter />} />
+            <Route path="sms-center" element={<OfficerSmsManagement />} />
             <Route path="history" element={<LoanHistory />} />
             <Route path="review/:loanId" element={<LoanReviewPage />} />
         </Routes>

@@ -10,6 +10,7 @@ export interface User {
   name: string;
   email: string;
   role: Role;
+  createdAt: string;
   phone?: string;
   bvn?: string;
   nin?: string;
@@ -55,7 +56,7 @@ export interface Repayment {
 export interface SmsLog {
     id: string;
     loanId: string;
-    borrowerName: string;
+    userName: string;
     message: string;
     date: string; // The date it was sent or is scheduled to be sent
     status: 'SENT' | 'FAILED' | 'SCHEDULED';

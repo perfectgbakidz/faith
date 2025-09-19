@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -52,8 +53,17 @@ const BorrowerDashboard: React.FC = () => {
                     )}
                 </Card>
                 <Card title="New Loan" icon={<FilePlusIcon className="w-6 h-6"/>}>
-                    <p className="text-gray-500 mb-4">Ready to pursue your goals?</p>
-                    <Button onClick={() => navigate('/app/borrower/apply')}>Apply Now</Button>
+                    {loan ? (
+                        <div>
+                            <p className="text-gray-500 mb-4">You cannot apply for a new loan while you have an active or pending application.</p>
+                            <Button onClick={() => navigate('/app/borrower/status')} variant="secondary">View Status</Button>
+                        </div>
+                    ) : (
+                        <>
+                            <p className="text-gray-500 mb-4">Ready to pursue your goals?</p>
+                            <Button onClick={() => navigate('/app/borrower/apply')}>Apply Now</Button>
+                        </>
+                    )}
                 </Card>
             </div>
         </div>
@@ -69,6 +79,17 @@ const ApplyLoan: React.FC = () => {
     const [guarantorIds, setGuarantorIds] = useState(['', '', '', '']);
     const [submitting, setSubmitting] = useState(false);
     const [message, setMessage] = useState('');
+    const [hasActiveLoan, setHasActiveLoan] = useState<boolean | null>(null);
+
+    useEffect(() => {
+        const checkActiveLoan = async () => {
+            if (user) {
+                const currentLoan = await apiGetBorrowerLoan(user.id);
+                setHasActiveLoan(!!currentLoan);
+            }
+        };
+        checkActiveLoan();
+    }, [user]);
 
     const handleGuarantorIdChange = (index: number, value: string) => {
         const newIds = [...guarantorIds];
@@ -103,6 +124,23 @@ const ApplyLoan: React.FC = () => {
         }
     };
     
+    if (hasActiveLoan === null) {
+        return <Card title="Loan Application Form"><p>Checking your loan status...</p></Card>;
+    }
+
+    if (hasActiveLoan) {
+        return (
+            <Card title="Loan Application Unavailable">
+                <div className="text-center">
+                    <p className="text-gray-600 mb-4">
+                        You have an active or pending loan application. You can apply for a new loan once your current loan is completed or resolved.
+                    </p>
+                    <Button onClick={() => navigate('/app/borrower/status')}>View Loan Status</Button>
+                </div>
+            </Card>
+        );
+    }
+
     return (
         <Card title="Loan Application Form">
             <form onSubmit={handleSubmit} className="space-y-4">

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
@@ -35,7 +34,7 @@ const LoginPage: React.FC = () => {
                     {loading ? 'Logging in...' : 'Login'}
                 </Button>
                 <p className="text-sm text-center text-gray-600">
-                    Don't have an account? <Link to="/register" className="font-medium text-primary hover:underline">Register</Link>
+                    Don't have an account? <Link to="/register" className="font-medium text-primary hover:underline">Sign Up</Link>
                 </p>
             </div>
         </form>
@@ -83,7 +82,7 @@ const RegisterPage: React.FC = () => {
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="space-y-4 pt-2">
                 <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? 'Registering...' : 'Register'}
+                    {loading ? 'Signing up...' : 'Sign Up'}
                 </Button>
                 <p className="text-sm text-center text-gray-600">
                     Already have an account? <Link to="/login" className="font-medium text-primary hover:underline">Login</Link>
@@ -97,8 +96,8 @@ const TestCredentials: React.FC = () => (
     <div className="fixed bottom-4 left-4 bg-gray-800 text-white p-4 rounded-lg shadow-lg text-xs z-50">
         <h4 className="font-bold mb-2 border-b border-gray-600 pb-1">Test Credentials</h4>
         <ul className="space-y-1">
-            <li><strong>Admin:</strong> <code className="bg-gray-700 px-1 rounded">admin@perfectbank.com</code></li>
-            <li><strong>Officer:</strong> <code className="bg-gray-700 px-1 rounded">officer.ade@perfectbank.com</code></li>
+            <li><strong>Admin:</strong> <code className="bg-gray-700 px-1 rounded">admin@yahsalamuli.org</code></li>
+            <li><strong>Officer:</strong> <code className="bg-gray-700 px-1 rounded">adebayo.adewale@yahsalamuli.org</code></li>
             <li><strong>Borrower:</strong> <code className="bg-gray-700 px-1 rounded">PMB-00001</code></li>
             <li className="pt-1"><strong>Password:</strong> <code className="bg-gray-700 px-1 rounded">password</code></li>
         </ul>
@@ -116,11 +115,11 @@ const AuthPage: React.FC<{ isRegister?: boolean }> = ({ isRegister = false }) =>
             <div className="max-w-md w-full">
                 <div className="flex justify-center items-center mb-6">
                     <BuildingIcon className="w-12 h-12 text-primary" />
-                    <h1 className="text-3xl font-bold ml-3 text-secondary">Loan Management System</h1>
+                    <h1 className="text-3xl font-bold ml-3 text-secondary">YAH SALAMULI ORG</h1>
                 </div>
                 <Card className="w-full">
                     <h2 className="text-2xl font-semibold text-center text-gray-800 mb-6">
-                        {effectiveIsRegister ? 'Create an Account' : 'Welcome Back'}
+                        {effectiveIsRegister ? 'Sign Up for an Account' : 'Welcome Back'}
                     </h2>
                     {effectiveIsRegister ? <RegisterPage /> : <LoginPage />}
                 </Card>

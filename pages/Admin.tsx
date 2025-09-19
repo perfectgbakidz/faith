@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { Routes, Route } from 'react-router-dom';
-import { apiGetAllLoans, apiGetAllSmsLogs, apiGetAllUsers, apiAdminCreateUser, apiAdminDeleteUser, apiAdminToggleFreezeUser, apiAdminSendBulkSms } from '../services/mockApi';
+import { apiGetAllLoans, apiGetAllSmsLogs, apiGetAllUsers, apiAdminCreateUser, apiAdminDeleteUser, apiAdminToggleFreezeUser, apiAdminSendBulkSms, apiReviewLoan } from '../services/mockApi';
 import { Loan, User, SmsLog, LoanStatus, Role } from '../types';
 import { Card, Table, Badge, Button, Modal, Input, Select } from '../components/ui';
 import { UsersIcon, BanknoteIcon, MessageSquareIcon } from '../constants';
@@ -157,17 +156,17 @@ const UserManagement: React.FC = () => {
     );
 };
 
-const LoanOversight: React.FC = () => {
+const LoanHistory: React.FC = () => {
     const [loans, setLoans] = useState<Loan[]>([]);
     const [filteredLoans, setFilteredLoans] = useState<Loan[]>([]);
     const [filter, setFilter] = useState<LoanStatus | 'ALL'>('ALL');
 
+    const fetchLoans = async () => {
+        const allLoans = await apiGetAllLoans();
+        setLoans(allLoans);
+    };
+
     useEffect(() => {
-        const fetchLoans = async () => {
-            const allLoans = await apiGetAllLoans();
-            setLoans(allLoans);
-            setFilteredLoans(allLoans);
-        };
         fetchLoans();
     }, []);
     
@@ -179,8 +178,15 @@ const LoanOversight: React.FC = () => {
         }
     }, [filter, loans]);
 
+    const handleReview = async (loanId: string, status: LoanStatus.APPROVED | LoanStatus.REJECTED) => {
+        if (window.confirm(`Are you sure you want to ${status.toLowerCase()} this loan?`)) {
+            await apiReviewLoan(loanId, status);
+            fetchLoans(); // Re-fetch loans to get updated status
+        }
+    };
+
     const columns: Array<{ header: string; accessor: keyof Loan | ((item: Loan) => React.ReactNode) }> = [
-        { header: 'Borrower', accessor: 'userName' },
+        { header: 'User', accessor: 'userName' },
         { header: 'Amount', accessor: (item: Loan) => `₦${item.amount.toLocaleString()}` },
         { header: 'Applied On', accessor: (item: Loan) => new Date(item.applicationDate).toLocaleDateString() },
         { header: 'Status', accessor: (item: Loan) => {
@@ -192,6 +198,20 @@ const LoanOversight: React.FC = () => {
             };
             return <Badge color={colorMap[item.status]}>{item.status}</Badge>
         }},
+        {
+            header: 'Actions',
+            accessor: (item: Loan) => {
+                if (item.status === LoanStatus.PENDING) {
+                    return (
+                        <div className="space-x-2">
+                            <Button variant="success" className="py-1 px-3 text-sm" onClick={() => handleReview(item.id, LoanStatus.APPROVED)}>Approve</Button>
+                            <Button variant="danger" className="py-1 px-3 text-sm" onClick={() => handleReview(item.id, LoanStatus.REJECTED)}>Reject</Button>
+                        </div>
+                    );
+                }
+                return <span className="text-gray-400">-</span>;
+            }
+        }
     ];
 
     const filterButtons: Array<{ status: LoanStatus | 'ALL', label: string }> = [
@@ -203,7 +223,7 @@ const LoanOversight: React.FC = () => {
     ];
 
     return (
-        <Card title="Loan Oversight">
+        <Card title="Loan History">
             <div className="flex space-x-2 mb-4">
                 {filterButtons.map(btn => (
                      <button 
@@ -245,7 +265,9 @@ const SmsManagement: React.FC = () => {
     }, []);
 
     const handleRecipientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-        const options = Array.from(e.target.selectedOptions, option => option.value);
+        // FIX: Use `e.target.selectedOptions` to directly get selected options and avoid type issues with iterating `e.target.options`.
+        // FIX: Cast `option` to `HTMLOptionElement` because its type was incorrectly inferred as 'unknown'.
+        const options = Array.from(e.target.selectedOptions, option => (option as HTMLOptionElement).value);
         setSelectedRecipients(options);
     };
 
@@ -283,7 +305,7 @@ const SmsManagement: React.FC = () => {
     };
     
     const columns: Array<{ header: string; accessor: keyof SmsLog | ((item: SmsLog) => React.ReactNode) }> = [
-        { header: 'Borrower', accessor: 'borrowerName' },
+        { header: 'User', accessor: 'userName' },
         { header: 'Message', accessor: 'message' },
         { header: 'Date', accessor: (item: SmsLog) => new Date(item.date).toLocaleString() },
         { header: 'Status', accessor: (item: SmsLog) => {
@@ -347,7 +369,7 @@ const AdminPage: React.FC = () => {
         <Routes>
             <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="users" element={<UserManagement />} />
-            <Route path="loans" element={<LoanOversight />} />
+            <Route path="loan-history" element={<LoanHistory />} />
             <Route path="sms-management" element={<SmsManagement />} />
         </Routes>
     );

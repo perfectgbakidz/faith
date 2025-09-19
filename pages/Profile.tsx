@@ -1,9 +1,37 @@
-
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Card, Input, Button } from '../components/ui';
 import { UserIcon } from '../constants';
 import { apiUpdatePassword } from '../services/mockApi';
+
+const calculateMembershipDuration = (joinDate: string): string => {
+    const start = new Date(joinDate);
+    const now = new Date();
+    let years = now.getFullYear() - start.getFullYear();
+    let months = now.getMonth() - start.getMonth();
+    
+    if (months < 0 || (months === 0 && now.getDate() < start.getDate())) {
+        years--;
+        months = (months + 12) % 12;
+    }
+    
+    if (now.getDate() < start.getDate()) {
+        months--;
+         if (months < 0) {
+            years--;
+            months += 12;
+        }
+    }
+    
+    if (years === 0 && months === 0) {
+        return "New member";
+    }
+
+    const yearStr = years > 0 ? `${years} year${years > 1 ? 's' : ''}` : '';
+    const monthStr = months > 0 ? `${months} month${months > 1 ? 's' : ''}` : '';
+    
+    return [yearStr, monthStr].filter(Boolean).join(', ');
+};
 
 const ProfilePage: React.FC = () => {
     const { user } = useAuth();
@@ -82,6 +110,9 @@ const ProfilePage: React.FC = () => {
                                 <Input label="Phone Number" value={phone} onChange={e => setPhone(e.target.value)} />
                                 <Input label="Bank Verification Number (BVN)" value={bvn} onChange={e => setBvn(e.target.value)} />
                                 <Input label="National Identification Number (NIN)" value={nin} onChange={e => setNin(e.target.value)} />
+                                <div className="md:col-span-2">
+                                    <Input label="Member Since" value={`${new Date(user.createdAt).toLocaleDateString()} (${calculateMembershipDuration(user.createdAt)})`} readOnly disabled />
+                                </div>
                             </div>
                             <Button type="submit">Update Profile</Button>
                         </form>
